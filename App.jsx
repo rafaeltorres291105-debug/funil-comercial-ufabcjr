@@ -95,13 +95,11 @@ export default function App() {
   const [activeParticipantFilter, setActiveParticipantFilter] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Modal de edição/detalhes
   const [selectedLead, setSelectedLead] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState("");
   const [newParticipantEmail, setNewParticipantEmail] = useState("");
 
-  // 1. Escuta em tempo real do Firestore
   useEffect(() => {
     const leadsCollection = collection(db, 'leads');
     
@@ -131,7 +129,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Lista dinâmica de membros para filtro e auto-completar
   const uniqueParticipants = useMemo(() => {
     const names = new Set();
     leads.forEach(lead => {
@@ -144,7 +141,6 @@ export default function App() {
     return Array.from(names).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [leads]);
 
-  // Drag & Drop
   const handleDragStart = (e, leadId) => {
     setDraggedLeadId(leadId);
     e.dataTransfer.effectAllowed = 'move';
@@ -190,7 +186,6 @@ export default function App() {
     setTimeout(() => setSelectedLead(null), 300);
   };
 
-  // Adicionar participante à lista da reunião
   const addParticipantToList = () => {
     if (newParticipantName.trim() === '') return;
     
@@ -223,7 +218,6 @@ export default function App() {
     }));
   };
 
-  // Salvar no Firebase
   const saveLeadDetails = async () => {
     if (!selectedLead?.id) return;
     try {
@@ -250,7 +244,6 @@ export default function App() {
     }
   };
 
-  // Excluir Lead (pode ser chamado do card ou do modal)
   const handleDeleteLead = async (leadId, e) => {
     if (e) e.stopPropagation();
     
@@ -269,7 +262,6 @@ export default function App() {
     }
   };
 
-  // Criar novo lead
   const createNewLead = async () => {
     const newLeadData = {
       columnId: 'diagnostica',
@@ -292,7 +284,6 @@ export default function App() {
     }
   };
 
-  // Filtragem dos leads
   const filteredLeads = leads.filter(lead => {
     const matchService = activeFilter === 'Todos' || lead.serviceType === activeFilter;
     const matchSearch = lead.company?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -305,14 +296,12 @@ export default function App() {
     <div className="h-screen flex flex-col bg-ufabc-bg overflow-hidden">
       <Watermark />
       
-      {/* Sugestões de nomes para auto-completar */}
       <datalist id="members-list">
         {uniqueParticipants.map(name => (
           <option key={name} value={name} />
         ))}
       </datalist>
 
-      {/* Header */}
       <header className="bg-ufabc-dark w-full shadow-md border-b border-gray-800 flex-shrink-0">
         <div className="px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
@@ -324,7 +313,6 @@ export default function App() {
           </div>
           
           <div className="flex flex-wrap xl:flex-nowrap gap-3 w-full xl:w-auto mt-2 sm:mt-0">
-            {/* Filtro por Serviço */}
             <div className="relative group flex-1 sm:flex-none min-w-[150px]">
               <select 
                 value={activeFilter}
@@ -339,7 +327,6 @@ export default function App() {
               <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-white/70 pointer-events-none text-xs"></i>
             </div>
 
-            {/* Filtro por Membro */}
             <div className="relative group flex-1 sm:flex-none min-w-[150px]">
               <select 
                 value={activeParticipantFilter}
@@ -354,7 +341,6 @@ export default function App() {
               <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-white/70 pointer-events-none text-xs"></i>
             </div>
             
-            {/* Busca */}
             <div className="relative group flex-1 sm:flex-none min-w-[150px]">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-white/70">
                 <i className="fa-solid fa-magnifying-glass text-xs"></i>
@@ -378,7 +364,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Kanban Board */}
       <main className="flex-1 overflow-x-auto overflow-y-hidden kanban-scroll p-6">
         {loading ? (
           <div className="h-full flex items-center justify-center">
@@ -418,14 +403,12 @@ export default function App() {
                         onClick={() => openModal(lead)}
                         className="bg-white p-4 rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.1)] border border-slate-100 cursor-grab active:cursor-grabbing hover:border-slate-300 transition-all hover:-translate-y-0.5 group relative"
                       >
-                        {/* Cabeçalho do Card: Nome e Botão de Excluir Fácil */}
                         <div className="flex justify-between items-start mb-2 gap-2">
                           <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2 truncate flex-1">
                             <i className="fa-regular fa-file-lines text-slate-400 group-hover:text-ufabc-green transition-colors flex-shrink-0"></i>
                             <span className="truncate">{lead.company}</span>
                           </h4>
 
-                          {/* BOTÃO FÁCIL DE APAGAR À DIREITA DO LEAD */}
                           <button
                             type="button"
                             onClick={(e) => handleDeleteLead(lead.id, e)}
@@ -436,7 +419,6 @@ export default function App() {
                           </button>
                         </div>
 
-                        {/* Tag do Serviço */}
                         {lead.serviceType && (
                           <div className="mb-2.5">
                             <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-bold uppercase tracking-wider rounded">
@@ -445,7 +427,6 @@ export default function App() {
                           </div>
                         )}
                         
-                        {/* Participantes */}
                         {(lead.participants || []).length > 0 && (
                           <div className="flex flex-wrap gap-x-3 gap-y-2 my-2">
                             {lead.participants.map(p => (
@@ -462,7 +443,6 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* DATAS DAS REUNIÕES NO CARD */}
                         {(lead.rd1Date || lead.rd2Date || lead.proposalDate) && (
                           <div className="mt-3 pt-2 border-t border-slate-100 space-y-1 bg-slate-50/70 p-2 rounded-lg">
                             {lead.rd1Date && (
@@ -498,7 +478,6 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* Indicadores de Links */}
                         {(lead.proposalLink || lead.journeyLink) && (
                           <div className="mt-3 flex gap-2 border-t border-slate-100 pt-2.5">
                             {lead.proposalLink && <i className="fa-solid fa-file-powerpoint text-[10px] text-green-500 bg-green-50 p-1.5 rounded" title="Proposta Anexada"></i>}
@@ -516,13 +495,11 @@ export default function App() {
         )}
       </main>
 
-      {/* Modal de Detalhes do Lead */}
       {isModalOpen && selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeModal}></div>
           
           <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-            {/* Header Modal */}
             <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-4 flex-1">
                 <div className={`px-3 py-1 rounded-full text-xs font-bold ${COLUMNS.find(c => c.id === selectedLead.columnId)?.color} bg-opacity-20 ${COLUMNS.find(c => c.id === selectedLead.columnId)?.text}`}>
@@ -556,11 +533,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* Corpo Modal */}
             <div className="p-8 overflow-y-auto flex-1 bg-white grid grid-cols-1 lg:grid-cols-5 gap-10">
               <div className="lg:col-span-3 space-y-7">
                 
-                {/* 1. Serviço Ofertado */}
                 <section>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <i className="fa-solid fa-tag text-ufabc-green"></i> Serviço Ofertado
@@ -577,7 +552,6 @@ export default function App() {
                   </select>
                 </section>
 
-                {/* 2. DATAS DAS REUNIÕES (1ª RD, 2ª RD e Proposta) */}
                 <section>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <i className="fa-regular fa-calendar-days text-ufabc-green"></i> Cronograma de Reuniões
@@ -621,7 +595,6 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* 3. Participantes da Reunião */}
                 <section>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <i className="fa-solid fa-users text-ufabc-green"></i> Participantes da Reunião
@@ -632,4 +605,159 @@ export default function App() {
                         <div key={p.id} className="flex items-center justify-between p-2 hover:bg-white rounded-xl transition-colors border border-transparent hover:border-slate-200 hover:shadow-sm group">
                           <div className="flex flex-col">
                             <ParticipantBadge participant={p} />
-                            {p.email && <span className="text
+                            {p.email && <span className="text-[10px] text-slate-400 ml-8">{p.email}</span>}
+                          </div>
+                          <button 
+                            onClick={() => removeParticipant(p.id)}
+                            className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-2"
+                            title="Remover"
+                          >
+                            <i className="fa-solid fa-trash-can text-xs"></i>
+                          </button>
+                        </div>
+                      ))}
+                      {(!selectedLead.participants || selectedLead.participants.length === 0) && (
+                        <p className="text-xs text-slate-400 p-2 italic">Nenhum participante adicionado ainda.</p>
+                      )}
+                    </div>
+                    
+                    <div className="mt-2.5 p-2.5 border-t border-slate-200 bg-white rounded-xl shadow-xs space-y-2">
+                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-ufabc-green focus-within:border-transparent transition-all">
+                        <div className="pl-3 text-slate-400"><i className="fa-solid fa-user text-sm"></i></div>
+                        <input 
+                          type="text" 
+                          list="members-list"
+                          value={newParticipantName}
+                          onChange={(e) => setNewParticipantName(e.target.value)}
+                          onKeyDown={handleKeyDownParticipant}
+                          placeholder="Nome do membro (ex: Felipe Ikeda)..."
+                          className="w-full px-3 py-2 text-sm outline-none bg-transparent"
+                        />
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-ufabc-green focus-within:border-transparent transition-all flex-1">
+                          <div className="pl-3 text-slate-400"><i className="fa-solid fa-envelope text-sm"></i></div>
+                          <input 
+                            type="email" 
+                            value={newParticipantEmail}
+                            onChange={(e) => setNewParticipantEmail(e.target.value)}
+                            onKeyDown={handleKeyDownParticipant}
+                            placeholder="E-mail (opcional)..."
+                            className="w-full px-3 py-2 text-sm outline-none bg-transparent"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={addParticipantToList}
+                          className="px-4 py-2 bg-ufabc-green/10 text-ufabc-green hover:bg-ufabc-green hover:text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <i className="fa-solid fa-plus"></i> Adicionar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <i className="fa-solid fa-align-left text-ufabc-green"></i> Observações
+                  </h3>
+                  <textarea 
+                    value={selectedLead.notes || ""}
+                    onChange={(e) => setSelectedLead({...selectedLead, notes: e.target.value})}
+                    placeholder="Anotações sobre o status do lead, dores do cliente, próximos passos..."
+                    className="w-full min-h-[100px] bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-ufabc-green focus:bg-white transition-all resize-none"
+                  ></textarea>
+                </section>
+              </div>
+
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-[#EAF3F0] rounded-3xl p-6 border border-ufabc-green/20 h-full">
+                  <h3 className="text-sm font-black text-ufabc-green uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-ufabc-green/10 pb-4">
+                    <i className="fa-solid fa-folder-open"></i> Arquivos do Projeto
+                  </h3>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-bold text-ufabc-green mb-2">Arquivo de Proposta</label>
+                      {selectedLead.proposalLink ? (
+                        <div className="bg-white border border-green-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-8 h-8 bg-green-100 text-green-600 rounded flex items-center justify-center flex-shrink-0">
+                              <i className="fa-solid fa-file-powerpoint"></i>
+                            </div>
+                            <a href={selectedLead.proposalLink} target="_blank" rel="noreferrer" className="text-sm font-medium text-slate-700 hover:text-ufabc-green truncate underline decoration-slate-300 underline-offset-2">
+                              Ver Proposta Comercial
+                            </a>
+                          </div>
+                          <button onClick={() => setSelectedLead({...selectedLead, proposalLink: ''})} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                            <i className="fa-solid fa-xmark"></i>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i className="fa-solid fa-link text-xs"></i>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Cole o link do Drive/Canva..."
+                            className="w-full bg-white border border-slate-200 text-sm rounded-xl py-3 pl-9 pr-4 outline-none focus:ring-2 focus:ring-ufabc-green transition-all"
+                            onBlur={(e) => {
+                              if (e.target.value) setSelectedLead({...selectedLead, proposalLink: e.target.value});
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && e.target.value) setSelectedLead({...selectedLead, proposalLink: e.target.value});
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-ufabc-green mb-2">Jornada do Cliente</label>
+                      {selectedLead.journeyLink ? (
+                        <div className="bg-white border border-blue-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded flex items-center justify-center flex-shrink-0">
+                              <i className="fa-solid fa-file-excel"></i>
+                            </div>
+                            <a href={selectedLead.journeyLink} target="_blank" rel="noreferrer" className="text-sm font-medium text-slate-700 hover:text-blue-600 truncate underline decoration-slate-300 underline-offset-2">
+                              Abrir Planilha (Sheets)
+                            </a>
+                          </div>
+                          <button onClick={() => setSelectedLead({...selectedLead, journeyLink: ''})} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                            <i className="fa-solid fa-xmark"></i>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i className="fa-solid fa-link text-xs"></i>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Cole o link da Planilha..."
+                            className="w-full bg-white border border-slate-200 text-sm rounded-xl py-3 pl-9 pr-4 outline-none focus:ring-2 focus:ring-ufabc-green transition-all"
+                            onBlur={(e) => {
+                              if (e.target.value) setSelectedLead({...selectedLead, journeyLink: e.target.value});
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && e.target.value) setSelectedLead({...selectedLead, journeyLink: e.target.value});
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
