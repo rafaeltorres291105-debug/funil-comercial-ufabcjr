@@ -50,12 +50,12 @@
         });
     </script>
 
-    <!-- INTEGRAÇÃO FIREBASE (COM SUAS CHAVES) -->
+    <!-- INTEGRAÇÃO FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-        // Aqui estão as suas chaves conectadas!
+        // Suas chaves reais do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCz6mf9JczMehau6yHJ_uxZFzLxl1hNdso",
             authDomain: "site-do-funil-de-vendas.firebaseapp.com",
@@ -152,12 +152,11 @@
 
         const LOST_REASONS = ['Preço', 'Concorrente', 'Escopo/Momento', 'Sem Resposta', 'Outro'];
 
-        // Fallback local se o Firebase falhar
         const INITIAL_LEADS = [
             { id: '1', columnId: 'diagnostica', company: 'Lead Exemplo (Local)', participants: [], proposalLink: '', journeyLink: '', notes: '', serviceType: 'Outro', followUpDate: '' },
         ];
 
-        const LogoUFABC = ({ isDarkBg = true, className = "text-xl sm:text-3xl" }) => (
+        const LogoUFABC = ({ isDarkBg = true, className = "text-xl sm:text-2xl" }) => (
             <div className={`font-black tracking-tighter flex items-baseline select-none ${className} ${isDarkBg ? 'text-white' : 'text-ufabc-dark'}`}>
                 <span>UFABC</span>
                 <span className="text-ufabc-yellow ml-1 italic font-bold text-[0.8em]">jr.</span>
@@ -214,6 +213,13 @@
             const closeModal = () => { setIsModalOpen(false); setTimeout(() => setSelectedLead(null), 300); };
             const saveLeadDetails = () => { saveLeadToDB(selectedLead); closeModal(); };
 
+            const handleGerarOrcamento = () => {
+                saveLeadToDB(selectedLead); // Salva o status antes de ir
+                onNavigateToPricing(selectedLead.id, selectedLead.company, selectedLead.serviceType);
+                setIsModalOpen(false);
+                setSelectedLead(null);
+            };
+
             const handleAddParticipant = (e) => {
                 if (e.key === 'Enter' && newParticipantName.trim() !== '') {
                     e.preventDefault();
@@ -249,7 +255,6 @@
 
             return (
                 <div className="h-full flex flex-col relative bg-ufabc-bg">
-                    
                     {/* Barra de Filtros */}
                     <div className="px-6 py-4 flex flex-wrap xl:flex-nowrap gap-3 w-full border-b border-slate-200 bg-white/50 backdrop-blur flex-shrink-0 relative z-10">
                         <div className="relative group flex-1 sm:flex-none min-w-[150px]">
@@ -335,7 +340,6 @@
                         </div>
                     </div>
 
-                    {/* Datalist para Autocomplete (Escondido) */}
                     <datalist id="membros-sugestoes">
                         {uniqueParticipants.map(name => <option key={name} value={name} />)}
                     </datalist>
@@ -436,12 +440,12 @@
                                         </section>
                                     </div>
 
-                                    {/* Integração Carrinho/Precificação */}
                                     <div className="xl:col-span-2 space-y-6">
+                                        {/* Integração Carrinho/Precificação */}
                                         <div className="bg-[#EAF3F0] rounded-3xl p-6 border border-ufabc-green/20 shadow-sm relative overflow-hidden">
                                             <div className="flex justify-between items-center mb-6 border-b border-ufabc-green/10 pb-4 relative z-10">
                                                 <h3 className="text-xs font-black text-ufabc-green uppercase tracking-widest flex items-center gap-2"><i className="fa-solid fa-calculator"></i> Orçamento</h3>
-                                                <button onClick={() => { saveLeadDetails(); onNavigateToPricing(selectedLead.id, selectedLead.company, selectedLead.serviceType); }} className="px-3 py-1.5 bg-white text-ufabc-green border border-ufabc-green/30 rounded-lg text-[10px] font-black uppercase hover:bg-ufabc-green hover:text-white transition-colors">
+                                                <button onClick={handleGerarOrcamento} className="px-3 py-1.5 bg-white text-ufabc-green border border-ufabc-green/30 rounded-lg text-[10px] font-black uppercase hover:bg-ufabc-green hover:text-white transition-colors">
                                                     {selectedLead.savedPricing ? 'Editar' : 'Gerar Orçamento'}
                                                 </button>
                                             </div>
@@ -452,7 +456,7 @@
                                                         <div><span className="block text-[10px] font-bold text-ufabc-green/60 uppercase">Valor Ideal (Módulos)</span><span className="text-2xl font-black text-ufabc-green">{selectedLead.savedPricing.ideal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        {selectedLead.savedPricing.modules.map((m, i) => (
+                                                        {(selectedLead.savedPricing.modules||[]).map((m, i) => (
                                                             <div key={i} className="flex justify-between text-[11px] font-medium bg-white/60 px-3 py-1.5 rounded-lg border border-white">
                                                                 <span className="text-slate-600 truncate mr-2">{m.label}</span>
                                                                 <span className="font-bold text-ufabc-green">{m.final.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
@@ -495,45 +499,46 @@
             if (serviceId === 'mapeamento') {
                 const semanasColeta = Math.ceil((s.interviewees || 1) / 10);
                 return [
-                    { id: '1.1', nivel2: '1. Iniciação', nivel3: 'Ambientação e Kick-off', hours: 10, consultants: defaultConsultants },
-                    { id: '2.1', nivel2: '2. Coleta', nivel3: 'Entrevistas', hours: semanasColeta * 10, consultants: defaultConsultants },
-                    { id: '3.1', nivel2: '3. Análise', nivel3: 'Análise da Coleta', hours: 10, consultants: defaultConsultants },
-                    { id: '4.1', nivel2: '4. AS/IS', nivel3: 'Construção Fluxograma', hours: 10, consultants: defaultConsultants },
-                    { id: '4.2', nivel2: '4. AS/IS', nivel3: 'Construção Descritivo', hours: 10, consultants: defaultConsultants },
-                    { id: '5.1', nivel2: '5. Melhorias', nivel3: 'Análise Estratégica', hours: 10, consultants: defaultConsultants },
-                    { id: '6.1', nivel2: '6. TO-BE', nivel3: 'Fluxograma Final', hours: 10, consultants: defaultConsultants }
+                    { id: 'map_1', nivel2: 'Iniciação', nivel3: 'Ambientação e Kick-off', hours: 10, consultants: defaultConsultants },
+                    { id: 'map_2', nivel2: 'Coleta', nivel3: 'Entrevistas', hours: semanasColeta * 10, consultants: defaultConsultants },
+                    { id: 'map_3', nivel2: 'Análise', nivel3: 'Análise da Coleta', hours: 10, consultants: defaultConsultants },
+                    { id: 'map_4', nivel2: 'AS/IS', nivel3: 'Construção Fluxograma', hours: 10, consultants: defaultConsultants },
+                    { id: 'map_5', nivel2: 'AS/IS', nivel3: 'Construção Descritivo', hours: 10, consultants: defaultConsultants },
+                    { id: 'map_6', nivel2: 'Melhorias', nivel3: 'Análise Estratégica', hours: 10, consultants: defaultConsultants },
+                    { id: 'map_7', nivel2: 'TO-BE', nivel3: 'Fluxograma Final', hours: 10, consultants: defaultConsultants }
                 ];
             }
             if (serviceId === 'pesquisa_secundaria') return [
-                { id: '1.1', nivel2: '1. Setup', nivel3: 'Ambientação', hours: 10, consultants: defaultConsultants },
-                { id: '2.1', nivel2: '2. Planejamento', nivel3: 'Escopo e Fontes', hours: 10, consultants: defaultConsultants },
-                { id: '3.1', nivel2: '3. Coleta', nivel3: 'Dados de Mercado', hours: 20, consultants: defaultConsultants },
-                { id: '4.1', nivel2: '4. Análise', nivel3: 'Cruzamento de Dados', hours: 10, consultants: defaultConsultants }
+                { id: 'ps_1', nivel2: 'Setup', nivel3: 'Ambientação', hours: 10, consultants: defaultConsultants },
+                { id: 'ps_2', nivel2: 'Planejamento', nivel3: 'Escopo e Fontes', hours: 10, consultants: defaultConsultants },
+                { id: 'ps_3', nivel2: 'Coleta', nivel3: 'Dados de Mercado', hours: 20, consultants: defaultConsultants },
+                { id: 'ps_4', nivel2: 'Análise', nivel3: 'Cruzamento de Dados', hours: 10, consultants: defaultConsultants }
             ];
             if (serviceId === 'pesquisa_primaria') return [
-                { id: '1.1', nivel2: '1. Setup', nivel3: 'Planejamento', hours: 10, consultants: defaultConsultants },
-                { id: '2.1', nivel2: '2. Execução', nivel3: 'Coleta de Dados', hours: (s.semanasColeta || 2) * 10, consultants: defaultConsultants },
-                { id: '3.1', nivel2: '3. Processamento', nivel3: 'Entregáveis', hours: 20, consultants: defaultConsultants }
+                { id: 'pp_1', nivel2: 'Setup', nivel3: 'Planejamento', hours: 10, consultants: defaultConsultants },
+                { id: 'pp_2', nivel2: 'Execução', nivel3: 'Coleta de Dados', hours: (s.semanasColeta || 2) * 10, consultants: defaultConsultants },
+                { id: 'pp_3', nivel2: 'Processamento', nivel3: 'Entregáveis', hours: 20, consultants: defaultConsultants }
             ];
             if (serviceId === 'gestao_midias') return [
-                { id: '1.1', nivel2: '1. Setup', nivel3: 'Ambientação e Escopo', hours: 10, consultants: defaultConsultants },
-                { id: '1.2', nivel2: '1. Setup', nivel3: 'Pesquisa de Mercado', hours: 10, consultants: defaultConsultants },
-                { id: '2.1', nivel2: '2. Operação', nivel3: `Criação Posts`, hours: (s.postsPorSemana * 2) * s.mesesContrato * 4, consultants: defaultConsultants }, 
-                { id: '2.2', nivel2: '2. Operação', nivel3: 'Tráfego Pago', hours: s.trafegoPago === 'gm_trafegoSim' ? (10 * s.mesesContrato) : 0, consultants: defaultConsultants }
+                { id: 'gm_1', nivel2: 'Setup', nivel3: 'Ambientação e Escopo', hours: 10, consultants: defaultConsultants },
+                { id: 'gm_2', nivel2: 'Setup', nivel3: 'Pesquisa de Mercado', hours: 10, consultants: defaultConsultants },
+                { id: 'gm_3', nivel2: 'Operação', nivel3: `Criação Posts`, hours: (s.postsPorSemana * 2) * s.mesesContrato * 4, consultants: defaultConsultants }, 
+                { id: 'gm_4', nivel2: 'Operação', nivel3: 'Tráfego Pago', hours: s.trafegoPago === 'gm_trafegoSim' ? (10 * s.mesesContrato) : 0, consultants: defaultConsultants }
             ].filter(t => t.hours > 0);
             if (serviceId === 'servico_dados') return [
-                { id: '1.1', nivel2: '1. Setup', nivel3: 'Ambientação', hours: 10, consultants: defaultConsultants },
-                { id: '2.1', nivel2: '2. Preparação', nivel3: 'ETL', hours: 20, consultants: defaultConsultants },
-                { id: '3.1', nivel2: '3. Modelagem', nivel3: 'Análise', hours: 20, consultants: defaultConsultants },
-                { id: '4.1', nivel2: '4. BI', nivel3: 'Dashboards', hours: 20, consultants: defaultConsultants },
-                { id: '5.1', nivel2: '5. Finalização', nivel3: 'Elaboração do Relatório', hours: 10, consultants: defaultConsultants }
+                { id: 'sd_1', nivel2: 'Setup', nivel3: 'Ambientação', hours: 10, consultants: defaultConsultants },
+                { id: 'sd_2', nivel2: 'Preparação', nivel3: 'ETL', hours: 20, consultants: defaultConsultants },
+                { id: 'sd_3', nivel2: 'Modelagem', nivel3: 'Análise', hours: 20, consultants: defaultConsultants },
+                { id: 'sd_4', nivel2: 'BI', nivel3: 'Dashboards', hours: 20, consultants: defaultConsultants },
+                { id: 'sd_5', nivel2: 'Finalização', nivel3: 'Elaboração do Relatório', hours: 10, consultants: defaultConsultants }
             ];
             if (serviceId === 'comercial') return [
-                { id: '1.1', nivel2: '1. Setup', nivel3: 'Ambientação', hours: 10, consultants: defaultConsultants },
-                { id: '2.1', nivel2: '2. Diagnóstico', nivel3: 'Análise Funil', hours: 10, consultants: defaultConsultants },
-                { id: '3.1', nivel2: '3. Processos', nivel3: 'Definição ICP', hours: 10, consultants: defaultConsultants },
-                { id: '3.2', nivel2: '3. Processos', nivel3: 'Playbook', hours: 20, consultants: defaultConsultants },
-                { id: '4.1', nivel2: '4. Transferência', nivel3: 'Treinamento', hours: s.treino !== 'com_treinoNao' ? 10 : 0, consultants: defaultConsultants }
+                { id: 'com_1', nivel2: 'Setup', nivel3: 'Ambientação', hours: 10, consultants: defaultConsultants },
+                { id: 'com_2', nivel2: 'Diagnóstico', nivel3: 'Análise Funil', hours: 10, consultants: defaultConsultants },
+                { id: 'com_3', nivel2: 'Processos', nivel3: 'Definição ICP', hours: 10, consultants: defaultConsultants },
+                { id: 'com_4', nivel2: 'Processos', nivel3: 'Playbook', hours: 20, consultants: defaultConsultants },
+                { id: 'com_5', nivel2: 'Equipe', nivel3: 'Treinamento', hours: s.treino !== 'com_treinoNao' ? 10 : 0, consultants: defaultConsultants },
+                { id: 'com_6', nivel2: 'Equipe', nivel3: 'Definição Cargos', hours: s.cargos !== 'com_cargosNao' ? 10 : 0, consultants: defaultConsultants }
             ].filter(t => t.hours > 0);
             return [];
         };
@@ -546,7 +551,7 @@
                 mapeamento: { label: 'Mapeamento de Processos', consultants: 3, interviewees: 10, setores: 'map_setor2', complexidadeTecnica: 'map_profMedia', numeroPops: 0, custosExtras: 0, customTaskData: {} },
                 gestao_midias: { label: 'Gestão de Mídias', consultants: 2, mesesContrato: 6, postsPorSemana: 3, trafegoPago: 'gm_trafegoNao', custosExtras: 0, customTaskData: {} },
                 servico_dados: { label: 'Serviço de Dados', consultants: 3, complexidadeDados: 'sd_medio', custosExtras: 0, customTaskData: {} },
-                novo_escopo: { label: 'Novo Escopo (Livre)', consultants: 3, custosExtras: 0, customTasks: [{ id: '1.1', nivel2: 'Fase 1', nivel3: 'Sprint Principal', hours: 10, consultants: 3 }] }
+                novo_escopo: { label: 'Novo Escopo (Livre)', consultants: 3, custosExtras: 0, customTaskData: { 'novo_1': { id: 'novo_1', isNew: true, nivel2: 'Fase 1', nivel3: 'Sprint Principal', hours: 10, consultants: 3 } } }
             };
 
             const mapServiceTypeToTab = (type) => {
@@ -569,7 +574,7 @@
             useEffect(() => {
                 if(targetLeadContext?.serviceType) {
                     setActiveTab(mapServiceTypeToTab(targetLeadContext.serviceType));
-                    setSelectedServices([]); // Inicia carrinho zerado para o novo orcamento
+                    setSelectedServices([]);
                 }
             }, [targetLeadContext]);
 
@@ -580,27 +585,62 @@
             const handleConfigChange = (key, val) => setConfig(prev => ({ ...prev, [key]: Number(val) }));
 
             const handleCustomTaskChange = (serviceId, taskId, field, value) => {
-                if (serviceId === 'novo_escopo') {
-                    setServices(prev => {
-                        const newTasks = prev.novo_escopo.customTasks.map(t => t.id === taskId ? { ...t, [field]: value } : t);
-                        return { ...prev, novo_escopo: { ...prev.novo_escopo, customTasks: newTasks } };
-                    });
-                } else {
-                    setServices(prev => ({
-                        ...prev, [serviceId]: { ...prev[serviceId], customTaskData: { ...(prev[serviceId].customTaskData || {}), [taskId]: { ...(prev[serviceId].customTaskData?.[taskId] || {}), [field]: value } } }
-                    }));
-                }
+                setServices(prev => ({
+                    ...prev, 
+                    [serviceId]: { 
+                        ...prev[serviceId], 
+                        customTaskData: { 
+                            ...(prev[serviceId].customTaskData || {}), 
+                            [taskId]: { 
+                                ...(prev[serviceId].customTaskData?.[taskId] || {}), 
+                                [field]: value 
+                            } 
+                        } 
+                    }
+                }));
+            };
+
+            const addCustomTaskRow = (serviceId) => {
+                const newId = 'sprint_' + Date.now();
+                handleCustomTaskChange(serviceId, newId, 'isNew', true);
+                handleCustomTaskChange(serviceId, newId, 'id', newId);
+                handleCustomTaskChange(serviceId, newId, 'nivel2', 'Nova Fase');
+                handleCustomTaskChange(serviceId, newId, 'nivel3', 'Nova Sprint');
+                handleCustomTaskChange(serviceId, newId, 'hours', 10);
+                handleCustomTaskChange(serviceId, newId, 'consultants', services[serviceId].consultants || 3);
             };
 
             const calculateSingleService = (serviceName) => {
                 const s = services[serviceName];
                 const rate = config[`hora${companyType}`];
-                let tasks = serviceName === 'novo_escopo' ? s.customTasks : getEapTasks(serviceName, s).map(t => ({
-                    ...t, hours: s.customTaskData?.[t.id]?.hours !== undefined ? s.customTaskData[t.id].hours : t.hours,
-                    consultants: s.customTaskData?.[t.id]?.consultants !== undefined ? s.customTaskData[t.id].consultants : t.consultants
-                }));
+                
+                const baseTasks = serviceName === 'novo_escopo' ? [] : getEapTasks(serviceName, s);
+                
+                let tasks = baseTasks.map(t => {
+                    const override = s.customTaskData?.[t.id] || {};
+                    return {
+                        ...t,
+                        nivel2: override.nivel2 !== undefined ? override.nivel2 : t.nivel2,
+                        nivel3: override.nivel3 !== undefined ? override.nivel3 : t.nivel3,
+                        hours: override.hours !== undefined ? override.hours : t.hours,
+                        consultants: override.consultants !== undefined ? override.consultants : t.consultants,
+                        deleted: override.deleted
+                    };
+                }).filter(t => !t.deleted);
 
-                const totalBaseHours = tasks.reduce((sum, t) => sum + (t.hours * t.consultants), 0);
+                const addedTasks = Object.values(s.customTaskData || {})
+                    .filter(override => override.isNew && !override.deleted)
+                    .map(override => ({
+                        id: override.id,
+                        nivel2: override.nivel2 || 'Nova Fase',
+                        nivel3: override.nivel3 || 'Nova Sprint',
+                        hours: override.hours || 10,
+                        consultants: override.consultants || s.consultants || 3
+                    }));
+
+                tasks = [...tasks, ...addedTasks];
+
+                const totalBaseHours = tasks.reduce((sum, t) => sum + ((t.hours || 0) * (t.consultants || 1)), 0);
                 const baseValue = rate * totalBaseHours;
                 
                 let markupComplexidade = 1;
@@ -624,9 +664,24 @@
             const activeModuleResult = useMemo(() => activeTab === 'tabela_referencia' ? null : calculateSingleService(activeTab), [services, activeTab, companyType, capacity, config]);
 
             const results = useMemo(() => {
-                let totalIdeal = 0; const modules = [];
-                selectedServices.forEach(id => { const res = calculateSingleService(id); totalIdeal += res.final; modules.push({ id, label: services[id].label, final: res.final }); });
-                return { ideal: totalIdeal, aceitavel: totalIdeal * 0.90, lucroZero: totalIdeal * 0.80, modules };
+                let totalIdeal = 0; 
+                const modulesArray = [];
+                const items = {};
+                
+                selectedServices.forEach(id => { 
+                    const res = calculateSingleService(id); 
+                    items[id] = res;
+                    totalIdeal += res.final; 
+                    modulesArray.push({ id, label: services[id].label, final: res.final }); 
+                });
+                
+                return { 
+                    items, 
+                    ideal: totalIdeal, 
+                    aceitavel: totalIdeal * 0.90, 
+                    lucroZero: totalIdeal * 0.80, 
+                    modules: modulesArray 
+                };
             }, [services, companyType, capacity, selectedServices, config]);
 
             const TabButton = ({ id, label, icon }) => (
@@ -658,7 +713,14 @@
             );
 
             const saveAndAttach = () => {
-                if(targetLeadContext) onSavePricing(targetLeadContext.id, results);
+                if(targetLeadContext) {
+                    onSavePricing(targetLeadContext.id, {
+                        ideal: results.ideal,
+                        aceitavel: results.aceitavel,
+                        lucroZero: results.lucroZero,
+                        modules: results.modules
+                    });
+                }
             };
 
             return (
@@ -808,7 +870,7 @@
                                         </div>
                                     </div>
 
-                                    {/* Linha do Tempo / EAP Renovada */}
+                                    {/* Linha do Tempo / EAP Renovada e Editável */}
                                     <div className="mt-8">
                                         {!selectedServices.includes(activeTab) ? (
                                             <div className="p-10 bg-white rounded-3xl border border-dashed border-slate-300 text-center shadow-sm">
@@ -825,38 +887,51 @@
                                                     <button onClick={() => toggleServiceSelection(activeTab)} className="text-red-500 text-[10px] font-bold px-3 py-1 bg-red-50 rounded-full uppercase hover:bg-red-100"><i className="fa-solid fa-trash-can"></i> Remover do carrinho</button>
                                                 </div>
                                                 
-                                                <div className="relative border-l-2 border-ufabc-green/30 ml-4 space-y-8 pb-4">
-                                                    {activeModuleResult?.tasks.map(task => (
-                                                        <div key={task.id} className="relative pl-8 animate-in fade-in group">
-                                                            <div className="absolute -left-[9px] top-1 w-4 h-4 bg-ufabc-yellow rounded-full border-2 border-white shadow-sm"></div>
-                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{task.nivel2}</span>
-                                                            <h4 className="font-bold text-slate-800 text-lg mb-3">{task.nivel3}</h4>
-                                                            
-                                                            <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 group-hover:border-ufabc-green/40 transition-colors">
-                                                                <div>
-                                                                    <span className="block text-[9px] text-slate-400 mb-1 font-bold uppercase tracking-widest">Consultores</span>
-                                                                    <StepperControl min={1} value={task.consultants} onChange={(v) => handleCustomTaskChange(activeTab, task.id, 'consultants', v)} />
-                                                                </div>
-                                                                <div>
-                                                                    <span className="block text-[9px] text-slate-400 mb-1 font-bold uppercase tracking-widest">Horas</span>
-                                                                    <StepperControl min={0} step={2} value={task.hours} suffix="h" onChange={(v) => handleCustomTaskChange(activeTab, task.id, 'hours', v)} />
-                                                                </div>
-                                                                <div className="flex-1 text-right flex flex-col justify-center border-l border-slate-200 pl-4">
-                                                                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Subtotal da Etapa</span>
-                                                                    <span className="font-black text-ufabc-dark text-xl">{((task.hours * task.consultants) * activeModuleResult.effectiveRatePerHour).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                <div className="relative border-l-4 border-slate-200 ml-4 space-y-6 pb-4">
+                                                    {activeModuleResult?.tasks.map((task) => {
+                                                        const taskValue = ((task.hours||0) * (task.consultants||1)) * activeModuleResult.effectiveRatePerHour;
+                                                        return (
+                                                            <div key={task.id} className="relative pl-8 group">
+                                                                <div className="absolute -left-[14px] top-6 w-6 h-6 bg-ufabc-green rounded-full border-4 border-white shadow-sm"></div>
+                                                                
+                                                                <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow relative">
+                                                                    <input type="text" value={task.nivel2 || ''} onChange={(e) => handleCustomTaskChange(activeTab, task.id, 'nivel2', e.target.value)} className="text-[10px] font-black text-ufabc-green uppercase tracking-widest border-b border-dashed border-ufabc-green/30 w-full mb-3 bg-transparent outline-none pb-1 hover:border-ufabc-green/60 focus:border-ufabc-green" placeholder="Grupo (Nível 2)" />
+                                                                    
+                                                                    <div className="flex flex-col xl:flex-row justify-between gap-5">
+                                                                        <div className="flex-1">
+                                                                            <input type="text" value={task.nivel3 || ''} onChange={(e) => handleCustomTaskChange(activeTab, task.id, 'nivel3', e.target.value)} className="font-bold text-slate-800 text-lg bg-transparent border-b border-slate-200 outline-none w-full mb-5 focus:border-ufabc-yellow pb-1 hover:border-slate-300" placeholder="Nome da Sprint" />
+                                                                            
+                                                                            <div className="flex flex-wrap items-center gap-4">
+                                                                                <div>
+                                                                                    <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-2">Consultores</span>
+                                                                                    <StepperControl min={1} step={1} value={task.consultants} onChange={(val) => handleCustomTaskChange(activeTab, task.id, 'consultants', val)} />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-2">Horas</span>
+                                                                                    <StepperControl min={0} step={2} value={task.hours} suffix="h" onChange={(val) => handleCustomTaskChange(activeTab, task.id, 'hours', val)} />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="xl:text-right flex flex-col justify-center border-t xl:border-t-0 xl:border-l border-slate-100 pt-5 xl:pt-0 xl:pl-8">
+                                                                            <span className="block text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Subtotal</span>
+                                                                            <span className="text-2xl font-black text-ufabc-dark">{taskValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <button onClick={() => handleCustomTaskChange(activeTab, task.id, 'deleted', true)} className="absolute -top-3 -right-3 w-8 h-8 bg-red-100 text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm hover:bg-red-500 hover:text-white" title="Excluir Sprint">
+                                                                        <i className="fa-solid fa-trash-can text-xs"></i>
+                                                                    </button>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                {activeTab === 'novo_escopo' && (
-                                                    <div className="mt-8 ml-12">
-                                                        <button onClick={() => setServices(prev => ({...prev, novo_escopo: {...prev.novo_escopo, customTasks: [...prev.novo_escopo.customTasks, { id: Date.now().toString(), nivel2: 'Nova Fase', nivel3: 'Sprint', hours: 10, consultants: 3 }]}}))} className="px-6 py-3 border-2 border-dashed border-ufabc-green text-ufabc-green font-bold rounded-xl hover:bg-green-50 uppercase text-[10px] tracking-widest transition-colors">
-                                                            <i className="fa-solid fa-plus"></i> Adicionar Sprint
+                                                        );
+                                                    })}
+                                                    <div className="pl-8 pt-4">
+                                                        <button onClick={() => addCustomTaskRow(activeTab)} className="px-6 py-4 rounded-full border-2 border-dashed border-ufabc-green text-ufabc-green text-xs font-black uppercase tracking-widest hover:bg-ufabc-green hover:text-white transition-all shadow-sm">
+                                                            <i className="fa-solid fa-plus mr-2"></i> Adicionar Sprint Customizada
                                                         </button>
                                                     </div>
-                                                )}
+                                                </div>
+
                                             </div>
                                         )}
                                     </div>
@@ -929,7 +1004,6 @@
             });
 
             useEffect(() => {
-                // Firebase já está carregado pelo script type="module" no head
                 if (window.db && window.onSnapshot && window.collection) {
                     const unsubscribe = window.onSnapshot(window.collection(window.db, 'leads'), (snapshot) => { 
                         setLeads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); 
@@ -947,8 +1021,11 @@
 
             const saveLeadToDB = (leadData, isNew = false) => {
                 if (window.db && window.doc && window.updateDoc && window.addDoc) {
-                    if (isNew) window.addDoc(window.collection(window.db, 'leads'), leadData);
-                    else window.updateDoc(window.doc(window.db, 'leads', leadData.id), leadData);
+                    if (isNew) {
+                        window.addDoc(window.collection(window.db, 'leads'), leadData).catch(e => console.error(e));
+                    } else {
+                        window.updateDoc(window.doc(window.db, 'leads', leadData.id), leadData).catch(e => console.error(e));
+                    }
                 } else {
                     setLeads(prev => isNew ? [leadData, ...prev] : prev.map(l => l.id === leadData.id ? leadData : l));
                 }
@@ -960,8 +1037,11 @@
             };
 
             const handleSavePricingToLead = (leadId, pricingResultData) => {
+                // Ao clicar em integrar, buscamos o lead e salvamos
                 const leadToUpdate = leads.find(l => l.id === leadId);
-                if(leadToUpdate) saveLeadToDB({ ...leadToUpdate, savedPricing: pricingResultData });
+                if(leadToUpdate) {
+                    saveLeadToDB({ ...leadToUpdate, savedPricing: pricingResultData });
+                }
                 setCurrentView('crm');
                 setPricingTargetLeadContext(null);
             };
@@ -977,7 +1057,7 @@
                             </div>
                             <div className="flex bg-black/40 p-1.5 rounded-2xl shadow-inner w-full sm:w-auto">
                                 <button onClick={() => setCurrentView('crm')} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex justify-center items-center gap-2 ${currentView === 'crm' ? 'bg-ufabc-green text-white shadow' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                                    <i className="fa-solid fa-filter"></i> Funil comercial
+                                    <i className="fa-solid fa-filter"></i> Funil Comercial
                                 </button>
                                 <button onClick={() => { setCurrentView('pricing'); setPricingTargetLeadContext(null); }} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex justify-center items-center gap-2 ${currentView === 'pricing' ? 'bg-ufabc-green text-white shadow' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
                                     <i className="fa-solid fa-calculator"></i> Precificação
