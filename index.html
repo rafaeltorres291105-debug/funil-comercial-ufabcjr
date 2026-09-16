@@ -53,7 +53,7 @@
     <!-- INTEGRAÇÃO FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
         // Suas chaves reais do Firebase
         const firebaseConfig = {
@@ -68,7 +68,7 @@
         try {
             const app = initializeApp(firebaseConfig);
             const db = getFirestore(app);
-            window.db = db; window.collection = collection; window.onSnapshot = onSnapshot; window.doc = doc; window.updateDoc = updateDoc; window.addDoc = addDoc;
+            window.db = db; window.collection = collection; window.onSnapshot = onSnapshot; window.doc = doc; window.updateDoc = updateDoc; window.addDoc = addDoc; window.setDoc = setDoc;
             console.log("🔥 Firebase inicializado com sucesso!");
         } catch (error) { 
             console.error("Erro Firebase:", error); 
@@ -1020,14 +1020,16 @@
             }, [leads]);
 
             const saveLeadToDB = (leadData, isNew = false) => {
-                if (window.db && window.doc && window.updateDoc && window.addDoc) {
-                    if (isNew) {
-                        window.addDoc(window.collection(window.db, 'leads'), leadData).catch(e => console.error(e));
-                    } else {
-                        window.updateDoc(window.doc(window.db, 'leads', leadData.id), leadData).catch(e => console.error(e));
-                    }
+                if (window.db && window.doc && window.setDoc) {
+                    // Usando merge: true para criar se não existir ou atualizar se já existir,
+                    // prevenindo o erro "No document to update" do Firebase.
+                    window.setDoc(window.doc(window.db, 'leads', leadData.id), leadData, { merge: true })
+                        .catch(e => console.error("Erro ao salvar no Firebase:", e));
                 } else {
-                    setLeads(prev => isNew ? [leadData, ...prev] : prev.map(l => l.id === leadData.id ? leadData : l));
+                    setLeads(prev => {
+                        const exists = prev.some(l => l.id === leadData.id);
+                        return exists ? prev.map(l => l.id === leadData.id ? leadData : l) : [leadData, ...prev];
+                    });
                 }
             };
 
