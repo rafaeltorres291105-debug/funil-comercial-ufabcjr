@@ -53,7 +53,7 @@
     <!-- INTEGRAÇÃO FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
         // Suas chaves reais do Firebase
         const firebaseConfig = {
@@ -68,7 +68,7 @@
         try {
             const app = initializeApp(firebaseConfig);
             const db = getFirestore(app);
-            window.db = db; window.collection = collection; window.onSnapshot = onSnapshot; window.doc = doc; window.updateDoc = updateDoc; window.addDoc = addDoc; window.setDoc = setDoc;
+            window.db = db; window.collection = collection; window.onSnapshot = onSnapshot; window.doc = doc; window.updateDoc = updateDoc; window.addDoc = addDoc; window.setDoc = setDoc; window.deleteDoc = deleteDoc;
             console.log("🔥 Firebase inicializado com sucesso!");
         } catch (error) { 
             console.error("Erro Firebase:", error); 
@@ -186,7 +186,7 @@
             </div>
         );
 
-        const CRMView = ({ leads, saveLeadToDB, onNavigateToPricing }) => {
+        const CRMView = ({ leads, saveLeadToDB, deleteLeadFromDB, onNavigateToPricing }) => {
             const [draggedLeadId, setDraggedLeadId] = useState(null);
             const [activeColId, setActiveColId] = useState(null);
             const [activeFilter, setActiveFilter] = useState('Todos');
@@ -197,6 +197,7 @@
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [newParticipantName, setNewParticipantName] = useState("");
             const [newParticipantEmail, setNewParticipantEmail] = useState("");
+            const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
             const handleDragStart = (e, leadId) => { setDraggedLeadId(leadId); setTimeout(() => e.target.classList.add('dragging'), 0); };
             const handleDragEnd = (e) => { e.target.classList.remove('dragging'); setDraggedLeadId(null); setActiveColId(null); };
@@ -205,12 +206,12 @@
                 e.preventDefault(); setActiveColId(null);
                 if (draggedLeadId) {
                     const lead = leads.find(l => l.id === draggedLeadId);
-                    if (lead) saveLeadToDB({ ...lead, columnId: colId });
+                    if (lead && lead.columnId !== colId) saveLeadToDB({ ...lead, columnId: colId });
                 }
             };
 
-            const openModal = (lead) => { setSelectedLead({ ...lead }); setIsModalOpen(true); };
-            const closeModal = () => { setIsModalOpen(false); setTimeout(() => setSelectedLead(null), 300); };
+            const openModal = (lead) => { setSelectedLead({ ...lead }); setIsModalOpen(true); setShowDeleteConfirm(false); };
+            const closeModal = () => { setIsModalOpen(false); setShowDeleteConfirm(false); setTimeout(() => setSelectedLead(null), 300); };
             const saveLeadDetails = () => { saveLeadToDB(selectedLead); closeModal(); };
 
             const handleGerarOrcamento = () => {
@@ -362,6 +363,21 @@
                                         <input type="text" value={selectedLead.company} onChange={(e) => setSelectedLead({...selectedLead, company: e.target.value})} className="text-2xl font-black text-ufabc-dark bg-transparent border-none outline-none focus:ring-0 flex-1 hover:bg-slate-200/50 rounded px-2 py-1 transition-colors" placeholder="Nome da Empresa" />
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        {!showDeleteConfirm ? (
+                                            <button onClick={() => setShowDeleteConfirm(true)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors mr-2" title="Apagar Lead">
+                                                <i className="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        ) : (
+                                            <div className="flex items-center bg-red-50 rounded-full pr-1 mr-2 animate-in slide-in-from-right-4">
+                                                <span className="text-xs font-bold text-red-600 px-3">Apagar?</span>
+                                                <button onClick={() => { deleteLeadFromDB(selectedLead.id); closeModal(); }} className="w-8 h-8 flex items-center justify-center bg-red-500 text-white hover:bg-red-600 rounded-full transition-colors shadow-sm">
+                                                    <i className="fa-solid fa-check text-xs"></i>
+                                                </button>
+                                                <button onClick={() => setShowDeleteConfirm(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full transition-colors">
+                                                    <i className="fa-solid fa-xmark text-xs"></i>
+                                                </button>
+                                            </div>
+                                        )}
                                         <button onClick={saveLeadDetails} className="px-5 py-2 bg-ufabc-green text-white text-sm font-bold rounded-xl hover:bg-ufabc-green-light transition-colors shadow-md">Salvar</button>
                                         <button onClick={closeModal} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-700 rounded-full transition-colors"><i className="fa-solid fa-xmark text-lg"></i></button>
                                     </div>
@@ -1020,16 +1036,25 @@
             }, [leads]);
 
             const saveLeadToDB = (leadData, isNew = false) => {
+                // Atualização otimista local imediata (evita o visual de duplicação/atraso no drag-and-drop)
+                setLeads(prev => {
+                    const exists = prev.some(l => l.id === leadData.id);
+                    return exists ? prev.map(l => l.id === leadData.id ? leadData : l) : [leadData, ...prev];
+                });
+
                 if (window.db && window.doc && window.setDoc) {
-                    // Usando merge: true para criar se não existir ou atualizar se já existir,
-                    // prevenindo o erro "No document to update" do Firebase.
                     window.setDoc(window.doc(window.db, 'leads', leadData.id), leadData, { merge: true })
                         .catch(e => console.error("Erro ao salvar no Firebase:", e));
-                } else {
-                    setLeads(prev => {
-                        const exists = prev.some(l => l.id === leadData.id);
-                        return exists ? prev.map(l => l.id === leadData.id ? leadData : l) : [leadData, ...prev];
-                    });
+                }
+            };
+
+            const deleteLeadFromDB = (leadId) => {
+                // Atualização otimista local imediata
+                setLeads(prev => prev.filter(l => l.id !== leadId));
+
+                if (window.db && window.doc && window.deleteDoc) {
+                    window.deleteDoc(window.doc(window.db, 'leads', leadId))
+                        .catch(e => console.error("Erro ao deletar no Firebase:", e));
                 }
             };
 
@@ -1069,7 +1094,7 @@
                     </header>
                     <main className="flex-1 relative overflow-hidden">
                         <div className={`absolute inset-0 ${currentView === 'crm' ? 'block' : 'hidden'}`}>
-                            <CRMView leads={leads} saveLeadToDB={saveLeadToDB} onNavigateToPricing={handleNavigateToPricing} />
+                            <CRMView leads={leads} saveLeadToDB={saveLeadToDB} deleteLeadFromDB={deleteLeadFromDB} onNavigateToPricing={handleNavigateToPricing} />
                         </div>
                         <div className={`absolute inset-0 ${currentView === 'pricing' ? 'block' : 'hidden'}`}>
                             <CalculadoraView config={pricingConfig} setConfig={setPricingConfig} targetLeadContext={pricingTargetLeadContext} onSavePricing={handleSavePricingToLead} />
